@@ -1,0 +1,6 @@
+{
+  "summary": "Implementation plan for transforming PayPilot into a clean, modern, production-grade merchant payment portal. Replaces developer jargon (e.g. 'Webhook' -> 'Instant Notifications'), organizes into 4 clear views (Dashboard, Transactions, Quick Charge, Alerts), and hides all test/sandbox clutter to look 100% real.",
+  "updatedAt": "2026-11-05T14:36:50.362416343Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

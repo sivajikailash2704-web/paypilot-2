@@ -1,0 +1,86 @@
+{
+  "transactions": [
+    {
+      "id": "tx_1001",
+      "description": "SaaS Pro Monthly Subscription",
+      "amount": 29,
+      "currency": "USD",
+      "status": "Completed",
+      "source": "PayPal Checkout",
+      "payer_email": "john.miller@enterprise.com",
+      "payer_name": "John Miller",
+      "created_at": "2026-10-31T14:18:37.155Z"
+    },
+    {
+      "id": "tx_1002",
+      "description": "Hardware Equipment Purchase",
+      "amount": 54.75,
+      "currency": "USD",
+      "status": "Completed",
+      "source": "PayPal Checkout",
+      "payer_email": "alex.rivera@techflow.io",
+      "payer_name": "Alex Rivera",
+      "created_at": "2026-11-01T20:18:37.155Z"
+    },
+    {
+      "id": "tx_1003",
+      "description": "Custom Platform Integration - Milestone 1",
+      "amount": 125,
+      "currency": "USD",
+      "status": "Pending",
+      "source": "Invoice",
+      "payer_email": "billing@clientco.com",
+      "payer_name": "Client Co.",
+      "created_at": "2026-11-02T08:18:37.155Z"
+    },
+    {
+      "id": "tx_1004",
+      "order_id": "8WJ92841KX920194B",
+      "capture_id": "5TR71029KL839102X",
+      "description": "Cloud Infrastructure Credits (1000 Units)",
+      "amount": 45,
+      "currency": "USD",
+      "status": "Completed",
+      "source": "PayPal Checkout",
+      "payer_email": "finance@devops-corp.io",
+      "payer_name": "Marcus Vance",
+      "created_at": "2026-11-02T12:18:37.155Z"
+    },
+    {
+      "id": "tx_1005",
+      "description": "Enterprise Consulting Retainer - Q4",
+      "amount": 450,
+      "currency": "USD",
+      "status": "Pending",
+      "source": "Manual",
+      "payer_email": "sarah.founder@fintech.io",
+      "payer_name": "Sarah Chen",
+      "created_at": "2026-11-02T13:18:37.155Z"
+    }
+  ],
+  "webhooks": [
+    {
+      "id": "wh_init_1",
+      "event_id": "WH-89X728109-DEVPOST",
+      "event_type": "PAYMENT.CAPTURE.COMPLETED",
+      "summary": "Payment capture completed for 15.00 USD",
+      "received_at": "2026-11-02T12:07:26.167Z",
+      "verification_status": "SUCCESS",
+      "resource_type": "capture",
+      "payload": {
+        "id": "5TR71029KL839102X",
+        "status": "COMPLETED",
+        "amount": {
+          "value": "15.00",
+          "currency_code": "USD"
+        },
+        "seller_receivable_breakdown": {
+          "paypal_fee": {
+            "value": "0.85",
+            "currency_code": "USD"
+          }
+        }
+      }
+    }
+  ]
+}

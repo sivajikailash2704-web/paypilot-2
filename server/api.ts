@@ -754,6 +754,16 @@ apiRouter.post('/postman/test-runner', async (req: Request, res: Response) => {
       const amt = body?.amount ? parseFloat(body.amount) : 35.00;
       const desc = body?.description || 'Postman Test Checkout Order';
       resultData = await createOrder({ amount: amt, currency: 'USD', description: desc });
+    } else if (endpoint === '/api/zapier/test') {
+      const targetUrl = body?.webhookUrl || Store.getZapierSettings().webhookUrl;
+      resultData = {
+        success: true,
+        status: 200,
+        message: 'Dispatched test payload to Zapier webhook integration.',
+        targetUrl: targetUrl || 'https://hooks.zapier.com/hooks/catch/sample/hook',
+        dispatched_event: 'payment.settled (postman_test)',
+        timestamp: new Date().toISOString()
+      };
     } else {
       resultData = { message: `Simulated response for ${method} ${endpoint}`, timestamp: new Date().toISOString() };
     }
@@ -779,5 +789,13 @@ apiRouter.post('/postman/test-runner', async (req: Request, res: Response) => {
       error: err.message
     });
   }
+});
+
+// Catch-all route for any unhandled /api requests to ensure JSON 404 is always returned
+apiRouter.use((req: Request, res: Response) => {
+  res.status(404).json({
+    error: `API route not found: ${req.method} ${req.originalUrl || req.url}`,
+    status: 404
+  });
 });
 

@@ -13,6 +13,7 @@ import {
   ToggleLeft,
   ToggleRight
 } from 'lucide-react';
+import { safeFetchJson } from '../utils/api';
 
 interface ZapierLog {
   id: string;
@@ -35,11 +36,12 @@ export const ZapierAutomationsView: React.FC = () => {
   const fetchConfig = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/zapier/config');
-      const data = await res.json();
-      setWebhookUrl(data.webhookUrl || '');
-      setAutoForward(data.autoForward ?? true);
-      setLogs(data.logs || []);
+      const res = await safeFetchJson('/api/zapier/config');
+      if (res.ok && res.data) {
+        setWebhookUrl(res.data.webhookUrl || '');
+        setAutoForward(res.data.autoForward ?? true);
+        setLogs(res.data.logs || []);
+      }
     } catch (err) {
       console.error('Failed to load Zapier config:', err);
     } finally {
@@ -56,13 +58,12 @@ export const ZapierAutomationsView: React.FC = () => {
     setSaving(true);
     setFeedback(null);
     try {
-      const res = await fetch('/api/zapier/config', {
+      const res = await safeFetchJson('/api/zapier/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ webhookUrl, autoForward }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to save settings');
+      if (!res.ok) throw new Error(res.error || 'Failed to save settings');
       setFeedback({ type: 'success', message: 'Zapier settings saved. Real-time forwarder active.' });
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message });
@@ -80,15 +81,14 @@ export const ZapierAutomationsView: React.FC = () => {
     setTesting(true);
     setFeedback(null);
     try {
-      const res = await fetch('/api/zapier/test', {
+      const res = await safeFetchJson('/api/zapier/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ webhookUrl }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Test delivery failed');
+      if (!res.ok) throw new Error(res.error || 'Test delivery failed');
 
-      setFeedback({ type: 'success', message: data.message || 'Test event delivered to Zapier!' });
+      setFeedback({ type: 'success', message: res.data?.message || 'Test event delivered to Zapier!' });
       fetchConfig();
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message });

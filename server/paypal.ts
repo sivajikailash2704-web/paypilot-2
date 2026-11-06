@@ -26,6 +26,16 @@ export function getPayPalConfig(): PayPalConfig {
   };
 }
 
+async function parseJsonSafely(response: Response, actionDesc: string): Promise<any> {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    const cleanSnippet = text.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+    throw new Error(`PayPal gateway returned non-JSON during ${actionDesc}: ${cleanSnippet.substring(0, 100) || 'Unknown response'}`);
+  }
+}
+
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
 export async function getPayPalAccessToken(): Promise<string> {
@@ -52,11 +62,12 @@ export async function getPayPalAccessToken(): Promise<string> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(`PayPal token error [${response.status}]:`, errorText);
-    throw new Error(`PayPal OAuth failed (${response.status}): ${errorText}`);
+    const cleanSnippet = errorText.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+    console.error(`PayPal token error [${response.status}]:`, cleanSnippet);
+    throw new Error(`PayPal OAuth failed (${response.status}): ${cleanSnippet.substring(0, 120)}`);
   }
 
-  const data = (await response.json()) as { access_token: string; expires_in: number };
+  const data = (await parseJsonSafely(response, 'token request')) as { access_token: string; expires_in: number };
   cachedToken = {
     token: data.access_token,
     expiresAt: Date.now() + (data.expires_in || 3600) * 1000,
@@ -118,7 +129,7 @@ export async function createOrder(params: {
       throw new Error(`PayPal API responded with status ${response.status}: ${errText}`);
     }
 
-    const orderData = (await response.json()) as any;
+    const orderData = (await parseJsonSafely(response, 'createOrder')) as any;
     const links: Array<{ href: string; rel: string }> = orderData.links || [];
     const approveUrl =
       links.find((l) => l.rel === 'payer-action')?.href ||
@@ -192,7 +203,7 @@ export async function captureOrder(orderId: string) {
       throw new Error(`Capture failed (${response.status}): ${errText}`);
     }
 
-    const data = (await response.json()) as any;
+    const data = (await parseJsonSafely(response, 'captureOrder')) as any;
     const capture = data.purchase_units?.[0]?.payments?.captures?.[0] || {};
     const amountVal = parseFloat(capture.amount?.value || '0');
     const currency = capture.amount?.currency_code || 'USD';
@@ -247,7 +258,7 @@ export async function getOrderDetails(orderId: string) {
     if (!response.ok) {
       throw new Error(`Failed to fetch order: ${response.status}`);
     }
-    return await response.json();
+    return await parseJsonSafely(response, 'getOrderDetails');
   } catch (err: any) {
     return { id: orderId, status: 'UNKNOWN', error: err.message };
   }
@@ -277,7 +288,7 @@ export async function fetchPayPalWebhooks(): Promise<any[]> {
       console.warn('Failed to list PayPal webhooks:', await res.text());
       return [];
     }
-    const data = (await res.json()) as any;
+    const data = (await parseJsonSafely(res, 'fetchPayPalWebhooks')) as any;
     return data.webhooks || [];
   } catch (err: any) {
     console.error('Error fetching PayPal webhooks:', err.message);
@@ -323,7 +334,7 @@ export async function registerPayPalWebhook(webhookUrl: string): Promise<{ id: s
     throw new Error(`PayPal Webhook Registration Error (${res.status}): ${errText}`);
   }
 
-  const data = (await res.json()) as any;
+  const data = (await parseJsonSafely(res, 'registerPayPalWebhook')) as any;
   setDynamicWebhookId(data.id);
   return { id: data.id, url: data.url };
 }
@@ -360,7 +371,7 @@ export async function verifyWebhookSignature(headers: Record<string, string>, bo
     });
 
     if (!response.ok) return false;
-    const res = (await response.json()) as any;
+    const res = (await parseJsonSafely(response, 'verifyWebhookSignature')) as any;
     return res.verification_status === 'SUCCESS';
   } catch (err) {
     console.error('Webhook signature verification call error:', err);

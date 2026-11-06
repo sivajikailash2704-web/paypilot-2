@@ -13,6 +13,7 @@ import { PayPalOrderModal } from './components/PayPalOrderModal';
 import { ManualTxModal } from './components/ManualTxModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { DashboardData, InsightsData, ConfigData, WebhookEventRecord } from './types';
+import { safeFetchJson } from './utils/api';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
@@ -44,27 +45,23 @@ export default function App() {
     if (!quiet) setIsRefreshing(true);
     try {
       const [dashRes, insRes, cfgRes, whRes] = await Promise.all([
-        fetch('/api/dashboard'),
-        fetch('/api/insights'),
-        fetch('/api/config'),
-        fetch('/api/paypal/webhooks'),
+        safeFetchJson<DashboardData>('/api/dashboard'),
+        safeFetchJson<InsightsData>('/api/insights'),
+        safeFetchJson<ConfigData>('/api/config'),
+        safeFetchJson<{ webhooks: WebhookEventRecord[] }>('/api/paypal/webhooks'),
       ]);
 
-      if (dashRes.ok) {
-        const dData = await dashRes.json();
-        setDashboard(dData);
+      if (dashRes.ok && dashRes.data) {
+        setDashboard(dashRes.data);
       }
-      if (insRes.ok) {
-        const iData = await insRes.json();
-        setInsights(iData);
+      if (insRes.ok && insRes.data) {
+        setInsights(insRes.data);
       }
-      if (cfgRes.ok) {
-        const cData = await cfgRes.json();
-        setConfig(cData);
+      if (cfgRes.ok && cfgRes.data) {
+        setConfig(cfgRes.data);
       }
-      if (whRes.ok) {
-        const wData = await whRes.json();
-        setWebhooks(wData.webhooks || []);
+      if (whRes.ok && whRes.data) {
+        setWebhooks(whRes.data.webhooks || []);
       }
     } catch (err) {
       console.error('Failed to sync data:', err);
@@ -96,14 +93,13 @@ export default function App() {
   // Capture PayPal Order
   const handleCaptureOrder = async (orderId: string) => {
     try {
-      const res = await fetch('/api/paypal/capture-order', {
+      const res = await safeFetchJson('/api/paypal/capture-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order_id: orderId }),
       });
-      const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to capture PayPal order.');
+        throw new Error(res.error || 'Failed to capture PayPal order.');
       }
       addToast('success', 'Payment Settled', `Order ${orderId} captured and settled successfully.`);
       fetchData();
@@ -116,13 +112,12 @@ export default function App() {
   // Refund Order
   const handleRefundOrder = async (txId: string, orderId?: string) => {
     try {
-      const res = await fetch('/api/paypal/refund-order', {
+      const res = await safeFetchJson('/api/paypal/refund-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: txId, order_id: orderId }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Refund failed.');
+      if (!res.ok) throw new Error(res.error || 'Refund failed.');
 
       addToast('info', 'Refund Processed', 'Transaction marked as refunded.');
       fetchData();
@@ -134,8 +129,8 @@ export default function App() {
   // Delete Transaction
   const handleDeleteTransaction = async (id: string) => {
     try {
-      const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete transaction.');
+      const res = await safeFetchJson(`/api/transactions/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(res.error || 'Failed to delete transaction.');
       addToast('info', 'Record Removed', 'Transaction record removed from ledger.');
       fetchData();
     } catch (err: any) {
@@ -146,13 +141,12 @@ export default function App() {
   // Quick Order Launcher helper
   const handleQuickOrder = async (amount: number, description: string) => {
     try {
-      const res = await fetch('/api/paypal/create-order', {
+      const res = await safeFetchJson('/api/paypal/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount, description, currency: 'USD' }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Order creation failed.');
+      if (!res.ok) throw new Error(res.error || 'Order creation failed.');
 
       addToast('success', 'Payment Order Created', `Created checkout for $${amount.toFixed(2)} USD.`);
       fetchData();

@@ -10,6 +10,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { ConfigData } from '../types';
+import { safeFetchJson } from '../utils/api';
 
 interface PayPalOrderModalProps {
   isOpen: boolean;
@@ -55,7 +56,7 @@ export const PayPalOrderModal: React.FC<PayPalOrderModalProps> = ({
     setCaptureSuccess(false);
 
     try {
-      const res = await fetch('/api/paypal/create-order', {
+      const res = await safeFetchJson('/api/paypal/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -65,13 +66,12 @@ export const PayPalOrderModal: React.FC<PayPalOrderModalProps> = ({
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to create payment order.');
+      if (!res.ok || !res.data) {
+        throw new Error(res.error || 'Failed to create payment order.');
       }
 
-      setCreatedOrder(data);
-      onOrderCreated(data);
+      setCreatedOrder(res.data);
+      onOrderCreated(res.data);
     } catch (err: any) {
       setError(err.message);
     } finally {

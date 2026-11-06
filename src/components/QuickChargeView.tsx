@@ -14,6 +14,7 @@ import {
   FileText
 } from 'lucide-react';
 import { ConfigData, Transaction } from '../types';
+import { safeFetchJson } from '../utils/api';
 
 interface QuickChargeViewProps {
   config: ConfigData | null;
@@ -64,7 +65,7 @@ export const QuickChargeView: React.FC<QuickChargeViewProps> = ({
         ? `${description} (Customer: ${customerName.trim()})`
         : description;
 
-      const res = await fetch('/api/paypal/create-order', {
+      const res = await safeFetchJson('/api/paypal/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -74,11 +75,12 @@ export const QuickChargeView: React.FC<QuickChargeViewProps> = ({
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create payment order.');
+      if (!res.ok || !res.data) {
+        throw new Error(res.error || 'Failed to create payment order.');
+      }
 
       const orderInfo = {
-        ...data,
+        ...res.data,
         amount: parseFloat(amount),
         description: fullDescription,
       };
@@ -113,9 +115,12 @@ export const QuickChargeView: React.FC<QuickChargeViewProps> = ({
     setIsLookingUp(true);
     setLookupResult(null);
     try {
-      const res = await fetch(`/api/paypal/order/${encodeURIComponent(lookupId.trim())}`);
-      const data = await res.json();
-      setLookupResult(data);
+      const res = await safeFetchJson(`/api/paypal/order/${encodeURIComponent(lookupId.trim())}`);
+      if (!res.ok) {
+        setLookupResult({ error: res.error || 'Failed to locate order.' });
+      } else {
+        setLookupResult(res.data);
+      }
     } catch (err: any) {
       setLookupResult({ error: err.message });
     } finally {

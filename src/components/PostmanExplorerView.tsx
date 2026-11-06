@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Code
 } from 'lucide-react';
+import { safeFetchJson } from '../utils/api';
 
 interface EndpointConfig {
   name: string;
@@ -84,7 +85,7 @@ export const PostmanExplorerView: React.FC = () => {
     }
 
     try {
-      const res = await fetch('/api/postman/test-runner', {
+      const res = await safeFetchJson('/api/postman/test-runner', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -94,8 +95,17 @@ export const PostmanExplorerView: React.FC = () => {
         }),
       });
 
-      const data = await res.json();
-      setResponse(data);
+      if (!res.ok) {
+        setResponse({
+          status: res.status || 500,
+          statusText: 'Gateway Error',
+          latency_ms: 0,
+          error: res.error || 'Failed to execute endpoint runner',
+          responseBody: res.data || { error: res.error },
+        });
+      } else {
+        setResponse(res.data);
+      }
     } catch (err: any) {
       setResponse({
         status: 500,
@@ -109,7 +119,12 @@ export const PostmanExplorerView: React.FC = () => {
   };
 
   const handleDownloadCollection = () => {
-    window.open('/api/postman/collection', '_blank');
+    const a = document.createElement('a');
+    a.href = '/api/postman/collection';
+    a.download = 'paypilot_paypal_postman_collection.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const copyResponseJson = () => {

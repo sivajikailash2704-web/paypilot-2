@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, AlertCircle, ArrowRight } from 'lucide-react';
+import { safeFetchJson } from '../utils/api';
 
 interface ManualTxModalProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ export const ManualTxModal: React.FC<ManualTxModalProps> = ({ isOpen, onClose, o
         throw new Error('Please enter a valid amount greater than 0.');
       }
 
-      const res = await fetch('/api/transactions', {
+      const res = await safeFetchJson('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -40,8 +41,7 @@ export const ManualTxModal: React.FC<ManualTxModalProps> = ({ isOpen, onClose, o
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to add transaction.');
+      if (!res.ok) throw new Error(res.error || 'Failed to add transaction.');
 
       onAdded();
       onClose();

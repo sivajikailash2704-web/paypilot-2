@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, Send, Bot, User, CornerDownLeft, RefreshCw } from 'lucide-react';
+import { safeFetchJson } from '../utils/api';
 
 interface Message {
   sender: 'user' | 'assistant';
@@ -44,15 +45,14 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({ onClose })
     setLoading(true);
 
     try {
-      const res = await fetch('/api/assistant', {
+      const res = await safeFetchJson('/api/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: textToSend }),
       });
-      const data = await res.json();
       const assistantMsg: Message = {
         sender: 'assistant',
-        text: data.reply || 'No response received from assistant.',
+        text: res.data?.reply || (res.ok ? 'No response received from assistant.' : `Assistant error: ${res.error || 'Request failed'}`),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, assistantMsg]);
@@ -61,7 +61,7 @@ export const AiAssistantDrawer: React.FC<AiAssistantDrawerProps> = ({ onClose })
         ...prev,
         {
           sender: 'assistant',
-          text: 'Unable to connect to the assistant service. Please check your network or try again.',
+          text: `Assistant unavailable: ${err.message || 'Please check your connection.'}`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);

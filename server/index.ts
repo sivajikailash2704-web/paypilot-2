@@ -9,6 +9,14 @@ export function createApiApp() {
   // Mount API router
   app.use('/', apiRouter);
 
+  // Catch-all for unknown API endpoints so they return JSON 404, never falling through to HTML
+  app.use((req, res) => {
+    res.status(404).json({
+      error: `API endpoint not found: ${req.method} ${req.originalUrl || req.url}`,
+      status: 404,
+    });
+  });
+
   return app;
 }
 

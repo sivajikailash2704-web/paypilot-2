@@ -1,6 +1,6 @@
 {
   "name": "PayPilot - Real-Time Payment Operations & Analytics Platform",
-  "description": "Full-stack payment operations dashboard to process customer checkouts, capture orders, monitor real-time event webhooks, and automate financial workflows.",
+  "description": "Full-stack payment operations platform powered by PayPal, featuring AG Grid transaction tables, automated Zapier workflows, and an interactive Postman API workspace.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

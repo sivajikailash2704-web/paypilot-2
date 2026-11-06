@@ -296,6 +296,41 @@ apiRouter.post('/paypal/capture-order', async (req: Request, res: Response) => {
       });
     }
 
+    // Auto-dispatch to Zapier if configured
+    try {
+      const zapierSettings = Store.getZapierSettings();
+      if (zapierSettings.autoForward && zapierSettings.webhookUrl) {
+        fetch(zapierSettings.webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'payment.settled',
+            timestamp: new Date().toISOString(),
+            transaction: updatedTx,
+            source: 'PayPilot Automated Workflow'
+          }),
+        })
+          .then((r) => {
+            Store.addZapierLog({
+              event: 'payment.settled',
+              status: r.status,
+              message: r.ok ? 'Auto-dispatched to Zapier successfully' : `Zapier returned status ${r.status}`,
+              payload: updatedTx
+            });
+          })
+          .catch((err) => {
+            Store.addZapierLog({
+              event: 'payment.settled',
+              status: 500,
+              message: err.message,
+              payload: updatedTx
+            });
+          });
+      }
+    } catch (e) {
+      console.warn('Zapier background dispatch notice:', e);
+    }
+
     res.json({
       status: captureResult.status,
       capture_id: captureResult.captureId,
@@ -501,3 +536,248 @@ apiRouter.post('/assistant', async (req: Request, res: Response) => {
     res.json({ reply: 'I encountered an error analyzing your payment data. Please try again.' });
   }
 });
+
+// ==========================================
+// Zapier Automation & Postman API Workspace Endpoints
+// ==========================================
+
+// 1. ZAPIER: Get configured webhook & delivery logs
+apiRouter.get('/zapier/config', (req: Request, res: Response) => {
+  const settings = Store.getZapierSettings();
+  res.json({
+    webhookUrl: settings.webhookUrl || '',
+    autoForward: settings.autoForward ?? true,
+    logs: settings.logs || [],
+    recipes: [
+      { id: 'slack', name: 'Slack Alerts', description: 'Post instant notification into #sales channel on payment capture' },
+      { id: 'sheets', name: 'Google Sheets', description: 'Append customer email, amount, and order ID row automatically' },
+      { id: 'quickbooks', name: 'QuickBooks Online', description: 'Create verified sales receipt in accounting system' },
+      { id: 'email', name: 'Customer Email', description: 'Dispatch customized purchase confirmation via Gmail or SendGrid' }
+    ]
+  });
+});
+
+// ZAPIER: Save webhook settings
+apiRouter.post('/zapier/config', (req: Request, res: Response) => {
+  const { webhookUrl, autoForward } = req.body;
+  const updated = Store.saveZapierSettings({ webhookUrl, autoForward });
+  res.json({
+    message: 'Zapier settings saved successfully.',
+    settings: updated
+  });
+});
+
+// ZAPIER: Trigger test event
+apiRouter.post('/zapier/test', async (req: Request, res: Response) => {
+  const { webhookUrl } = req.body;
+  const targetUrl = webhookUrl || Store.getZapierSettings().webhookUrl;
+
+  if (!targetUrl || typeof targetUrl !== 'string' || !targetUrl.startsWith('http')) {
+    res.status(400).json({ error: 'Please enter a valid Zapier Webhook URL (starts with https://hooks.zapier.com/...)' });
+    return;
+  }
+
+  const txs = Store.getTransactions();
+  const sampleTx = txs[0] || {
+    id: `tx_demo_${Date.now()}`,
+    amount: 75.00,
+    currency: 'USD',
+    description: 'Cloud SaaS Professional Subscription',
+    status: 'Completed',
+    source: 'PayPal Checkout',
+    payer_name: 'Jordan Lee',
+    payer_email: 'jordan@enterprise.co',
+    created_at: new Date().toISOString()
+  };
+
+  const payload = {
+    event: 'payment.settled',
+    timestamp: new Date().toISOString(),
+    transaction: sampleTx,
+    source: 'PayPilot Zapier Integration'
+  };
+
+  try {
+    const zapRes = await fetch(targetUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const responseText = await zapRes.text();
+    const logEntry = Store.addZapierLog({
+      event: 'payment.settled (test)',
+      status: zapRes.status,
+      message: zapRes.ok ? 'Successfully delivered to Zapier' : `Zapier responded with status ${zapRes.status}: ${responseText.substring(0, 100)}`,
+      payload
+    });
+
+    res.json({
+      success: zapRes.ok,
+      status: zapRes.status,
+      message: zapRes.ok ? 'Successfully triggered Zapier webhook!' : `Zapier responded with status ${zapRes.status}`,
+      log: logEntry
+    });
+  } catch (err: any) {
+    const errorLog = Store.addZapierLog({
+      event: 'payment.settled (test)',
+      status: 500,
+      message: `Delivery failed: ${err.message}`,
+      payload
+    });
+
+    res.status(500).json({
+      error: `Failed to connect to Zapier: ${err.message}`,
+      log: errorLog
+    });
+  }
+});
+
+// 2. POSTMAN: Export Postman Collection v2.1
+apiRouter.get('/postman/collection', (req: Request, res: Response) => {
+  const host = req.get('host') || 'localhost:3000';
+  const protocol = req.protocol || 'http';
+  const baseUrl = `${protocol}://${host}`;
+
+  const collection = {
+    info: {
+      name: 'PayPilot Payment Operations API',
+      _postman_id: 'b7de78a5-720a-48eb-a90a-3579946a2c1d',
+      description: 'Production-ready Postman collection for PayPilot real-time PayPal operations, orders, capture, webhooks, and analytics.',
+      schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+    },
+    item: [
+      {
+        name: 'System Health Check',
+        request: {
+          method: 'GET',
+          header: [],
+          url: { raw: `${baseUrl}/api/health`, protocol, host: [host], path: ['api', 'health'] },
+          description: 'Check gateway status and live PayPal connection'
+        }
+      },
+      {
+        name: 'Dashboard Analytics',
+        request: {
+          method: 'GET',
+          header: [],
+          url: { raw: `${baseUrl}/api/dashboard`, protocol, host: [host], path: ['api', 'dashboard'] },
+          description: 'Fetch aggregated revenue, 7-day velocity trends, and transactions'
+        }
+      },
+      {
+        name: 'Create PayPal Checkout Order',
+        request: {
+          method: 'POST',
+          header: [{ key: 'Content-Type', value: 'application/json' }],
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({ amount: 50.00, currency: 'USD', description: 'Professional Consulting Retainer' }, null, 2)
+          },
+          url: { raw: `${baseUrl}/api/paypal/create-order`, protocol, host: [host], path: ['api', 'paypal', 'create-order'] },
+          description: 'Create an authorized PayPal checkout order'
+        }
+      },
+      {
+        name: 'Capture PayPal Order',
+        request: {
+          method: 'POST',
+          header: [{ key: 'Content-Type', value: 'application/json' }],
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({ order_id: '{{order_id}}' }, null, 2)
+          },
+          url: { raw: `${baseUrl}/api/paypal/capture-order`, protocol, host: [host], path: ['api', 'paypal', 'capture-order'] },
+          description: 'Capture and settle payment immediately'
+        }
+      },
+      {
+        name: 'Verify Order by ID',
+        request: {
+          method: 'GET',
+          header: [],
+          url: { raw: `${baseUrl}/api/paypal/order/{{order_id}}`, protocol, host: [host], path: ['api', 'paypal', 'order', '{{order_id}}'] },
+          description: 'Fetch real-time order record directly from PayPal'
+        }
+      },
+      {
+        name: 'Trigger Zapier Webhook Event',
+        request: {
+          method: 'POST',
+          header: [{ key: 'Content-Type', value: 'application/json' }],
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({ webhookUrl: 'https://hooks.zapier.com/hooks/catch/sample/hook' }, null, 2)
+          },
+          url: { raw: `${baseUrl}/api/zapier/test`, protocol, host: [host], path: ['api', 'zapier', 'test'] }
+        }
+      }
+    ],
+    variable: [
+      { key: 'baseUrl', value: baseUrl, type: 'string' },
+      { key: 'order_id', value: '5O190127TN364715T', type: 'string' }
+    ]
+  };
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename="paypilot_postman_collection.json"');
+  res.json(collection);
+});
+
+// POSTMAN: In-app Test Runner Endpoint
+apiRouter.post('/postman/test-runner', async (req: Request, res: Response) => {
+  const { endpoint, method = 'GET', body } = req.body;
+  const startTime = Date.now();
+
+  try {
+    let resultData: any;
+    let status = 200;
+
+    if (endpoint === '/api/health') {
+      const config = getPayPalConfig();
+      resultData = {
+        status: 'ok',
+        app: 'PayPilot - Payment Operations Platform',
+        gateway_status: 'online',
+        configured: Boolean(config.clientId && config.clientSecret),
+        timestamp: new Date().toISOString()
+      };
+    } else if (endpoint === '/api/dashboard') {
+      const txs = Store.getTransactions();
+      const completedTotal = txs.filter(t => t.status === 'Completed').reduce((s, t) => s + t.amount, 0);
+      resultData = {
+        completed_total: completedTotal,
+        transaction_count: txs.length,
+        timestamp: new Date().toISOString()
+      };
+    } else if (endpoint === '/api/paypal/create-order') {
+      const amt = body?.amount ? parseFloat(body.amount) : 35.00;
+      const desc = body?.description || 'Postman Test Checkout Order';
+      resultData = await createOrder({ amount: amt, currency: 'USD', description: desc });
+    } else {
+      resultData = { message: `Simulated response for ${method} ${endpoint}`, timestamp: new Date().toISOString() };
+    }
+
+    const latency = Math.max(12, Date.now() - startTime);
+
+    res.json({
+      status,
+      statusText: 'OK',
+      latency_ms: latency,
+      headers: {
+        'content-type': 'application/json',
+        'x-powered-by': 'PayPilot Express Gateway',
+        'x-request-id': `req_${Date.now()}`
+      },
+      responseBody: resultData
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      status: 500,
+      statusText: 'Internal Error',
+      latency_ms: Date.now() - startTime,
+      error: err.message
+    });
+  }
+});
+

@@ -8,11 +8,13 @@ import {
   CheckCircle2,
   Receipt,
   LayoutDashboard,
-  CreditCard
+  CreditCard,
+  Send,
+  SlidersHorizontal
 } from 'lucide-react';
 import { ConfigData } from '../types';
 
-export type NavTab = 'dashboard' | 'transactions' | 'charge' | 'alerts';
+export type NavTab = 'dashboard' | 'transactions' | 'charge' | 'alerts' | 'zapier' | 'postman';
 
 interface HeaderProps {
   activeTab: NavTab;
@@ -143,6 +145,9 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Receipt className="w-3.5 h-3.5" />
           <span>Transactions</span>
+          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-300 font-semibold border border-blue-500/20">
+            AG Grid
+          </span>
         </button>
 
         <button
@@ -170,6 +175,30 @@ export const Header: React.FC<HeaderProps> = ({
           {unreadAlertsCount > 0 && (
             <span className="w-2 h-2 rounded-full bg-blue-500" />
           )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab('zapier')}
+          className={`px-3.5 py-2 text-xs font-medium rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+            activeTab === 'zapier'
+              ? 'bg-slate-800 text-amber-400 font-semibold shadow-xs border border-slate-700'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Zap className="w-3.5 h-3.5 text-amber-400" />
+          <span>Zapier Automations</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('postman')}
+          className={`px-3.5 py-2 text-xs font-medium rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+            activeTab === 'postman'
+              ? 'bg-slate-800 text-orange-400 font-semibold shadow-xs border border-slate-700'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Send className="w-3.5 h-3.5 text-orange-400" />
+          <span>Postman API Hub</span>
         </button>
       </div>
     </header>

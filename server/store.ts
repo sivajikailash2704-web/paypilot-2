@@ -34,6 +34,11 @@ const STORE_FILE = path.join(DATA_DIR, 'paypilot_store.json');
 interface StoreData {
   transactions: Transaction[];
   webhooks: WebhookEventRecord[];
+  zapierSettings?: {
+    webhookUrl: string;
+    autoForward: boolean;
+    logs: Array<{ id: string; timestamp: string; event: string; status: number; message: string; payload?: any }>;
+  };
 }
 
 const INITIAL_TRANSACTIONS: Transaction[] = [
@@ -222,5 +227,48 @@ export const Store = {
     const data = ensureDataStore();
     data.webhooks = [];
     saveStore(data);
+  },
+
+  getZapierSettings() {
+    const data = ensureDataStore();
+    return data.zapierSettings || {
+      webhookUrl: '',
+      autoForward: true,
+      logs: []
+    };
+  },
+
+  saveZapierSettings(settings: { webhookUrl?: string; autoForward?: boolean }) {
+    const data = ensureDataStore();
+    if (!data.zapierSettings) {
+      data.zapierSettings = { webhookUrl: '', autoForward: true, logs: [] };
+    }
+    if (typeof settings.webhookUrl === 'string') {
+      data.zapierSettings.webhookUrl = settings.webhookUrl.trim();
+    }
+    if (typeof settings.autoForward === 'boolean') {
+      data.zapierSettings.autoForward = settings.autoForward;
+    }
+    saveStore(data);
+    return data.zapierSettings;
+  },
+
+  addZapierLog(log: { event: string; status: number; message: string; payload?: any }) {
+    const data = ensureDataStore();
+    if (!data.zapierSettings) {
+      data.zapierSettings = { webhookUrl: '', autoForward: true, logs: [] };
+    }
+    const entry = {
+      id: `zap_log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: new Date().toISOString(),
+      ...log
+    };
+    data.zapierSettings.logs.unshift(entry);
+    if (data.zapierSettings.logs.length > 50) {
+      data.zapierSettings.logs = data.zapierSettings.logs.slice(0, 50);
+    }
+    saveStore(data);
+    return entry;
   }
 };
+

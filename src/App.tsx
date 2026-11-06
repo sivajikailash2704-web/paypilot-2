@@ -6,6 +6,8 @@ import { TransactionsTable } from './components/TransactionsTable';
 import { RecentActivity } from './components/RecentActivity';
 import { QuickChargeView } from './components/QuickChargeView';
 import { InstantNotificationsView } from './components/InstantNotificationsView';
+import { ZapierAutomationsView } from './components/ZapierAutomationsView';
+import { PostmanExplorerView } from './components/PostmanExplorerView';
 import { AiAssistantDrawer } from './components/AiAssistantDrawer';
 import { PayPalOrderModal } from './components/PayPalOrderModal';
 import { ManualTxModal } from './components/ManualTxModal';
@@ -241,6 +243,16 @@ export default function App() {
             onRefresh={fetchData}
             onOpenCharge={() => setActiveTab('charge')}
           />
+        )}
+
+        {/* VIEW 5: Zapier Automations */}
+        {activeTab === 'zapier' && (
+          <ZapierAutomationsView />
+        )}
+
+        {/* VIEW 6: Postman API Workspace */}
+        {activeTab === 'postman' && (
+          <PostmanExplorerView />
         )}
       </main>
 
